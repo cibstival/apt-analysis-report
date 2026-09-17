@@ -238,7 +238,10 @@
     "deposit_rate": 0.035,
     "deposit_note": "",
     "housing_saving": 0,
-    "saving_note": ""
+    "saving_note": "",
+    "one_home": 1,
+    "ltcg": null,
+    "_cgt_note": "one_home: 1세대 1주택 비과세 요건 충족 여부(1/0). ltcg: 장기보유특별공제율 직접 지정(null이면 policy.json 표로 자동: 1주택·거주 24%, 일반 6%)"
    },
    "model_callout": "",
    "checklist": [

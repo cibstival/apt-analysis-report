@@ -93,8 +93,10 @@ def auto_flag_outliers(rows, thr):
 
 # ---------------------------------------------------------------- 포맷
 def eok(v):
-    """만원 → '8억 8,700만원' 스타일"""
+    """만원 → '8억 8,700만원' 스타일 (음수는 '-' 접두)"""
     v = int(round(v))
+    if v < 0:
+        return "-" + eok(-v)
     e, m = divmod(v, 10000)
     if e and m:
         return f"{e}억 {m:,}만원"
@@ -104,7 +106,7 @@ def eok(v):
 
 
 def eok_short(v):
-    return f"{v/10000:.2f}억".replace(".00억", "억")
+    return f"{v/10000:.2f}억".replace(".00억", "억").replace("-0억", "0억")
 
 
 def pct(v, sign=True, nd=1):
@@ -171,6 +173,36 @@ def brokerage_rate(p, pol=None):
         if b["upto"] is None or p <= b["upto"]:
             return b["rate"]
     return 0.0
+
+
+def ltcg_rate(pol=None, years=3, one_home=True, resident=True):
+    """장기보유특별공제율. 1세대 1주택(표2)은 보유+거주(거주 2년 이상일 때), 아니면 일반(표1)."""
+    cg = (pol or load_policy())["capital_gains"]
+    y = str(int(years))
+    if one_home and resident:
+        return cg["ltcg_one_home_hold"].get(y, 0.0) + cg["ltcg_one_home_reside"].get(y, 0.0)
+    return cg["ltcg_general"].get(y, 0.0)
+
+
+def capital_gains_tax(sale, gain, pol=None, one_home=True, ltcg=None):
+    """양도세+지방소득세(만원). gain = 양도차익(양도가 − 취득가 − 필요경비). 1세대 1주택이면 고가주택 초과분만 과세."""
+    cg = (pol or load_policy())["capital_gains"]
+    hv, bd = cg["high_value_threshold"], cg["basic_deduction"]
+    if ltcg is None:
+        ltcg = ltcg_rate(pol, 3, one_home, True)
+    taxable = (0 if sale <= hv else gain * (sale - hv) / sale) if one_home else gain
+    tb = max(0.0, taxable * (1 - ltcg) - bd)
+    tax = max(tb * b["rate"] - b["deduction"] for b in cg["brackets"])
+    return max(0.0, tax) * (1 + cg["local_tax_ratio"])
+
+
+def capital_gains_formula(SALE, GAIN, HOME1, HV, LTCG, BDED, pol=None):
+    """capital_gains_tax와 같은 값을 내는 엑셀 수식. 인자는 셀 참조 문자열."""
+    cg = (pol or load_policy())["capital_gains"]
+    taxable = f"IF({HOME1}=1,IF({SALE}<={HV},0,{GAIN}*({SALE}-{HV})/{SALE}),{GAIN})"
+    tb = f"MAX(0,{taxable}*(1-{LTCG})-{BDED})"
+    prog = ",".join(f"{tb}*{b['rate']}-{b['deduction']}" for b in cg["brackets"])
+    return f"MAX(0,{prog})*{1 + cg['local_tax_ratio']}"
 
 
 def brokerage_formula(P, pol=None):
@@ -315,6 +347,21 @@ def compute_metrics(apt, mkt, trades):
         be2 = (costs + cash * md.get("deposit_rate", ld["deposit_rate_default"]) * 3) / (1 - sell) / user - 1
         M["breakeven_3y"] = pct(be); M["breakeven_3y_opp"] = pct(be2)
         M["loan_amount"] = eok(loan); M["cash_needed"] = eok(cash); M["acq_cost"] = eok(acq)
+        # 시나리오별 양도세(12억 초과분 과세)와 세후 순손익
+        cg = pol["capital_gains"]; ud = apt["user_deal"]
+        one_home = md.get("one_home", 1) == 1; ltcg = md.get("ltcg", ltcg_rate(pol, 3, one_home, bool(ud.get("resident", True))))
+        M["ltcg_rate"] = pct(ltcg, sign=False, nd=0); M["hv_threshold"] = eok_short(cg["high_value_threshold"])
+        names = {0: "bull", 1: "base", 2: "bear", 3: "stress"}
+        parts = []
+        for i, sc_ in enumerate(sc):
+            sale = user * (1 + sc_[3]); sell_cost = sale * brokerage_rate(sale, pol) * vat
+            gain = sale - user - acq - sell_cost
+            tax = capital_gains_tax(sale, gain, pol, one_home, ltcg)
+            net = sale - sell_cost - user - acq - loan * md.get("rate", ld["rate_default"]) * 3 - md.get("holding_tax", ld["holding_tax_default"]) * 3 + md.get("housing_saving", 0) * 3 - tax
+            k = names.get(i, f"s{i}")
+            M[f"sale_{k}"] = eok(sale); M[f"cgt_{k}"] = eok(tax) if tax >= 1 else "0원"; M[f"net_{k}"] = eok(net)
+            parts.append(f"{sc_[0]} {eok_short(sale)} → 양도세 {eok_short(tax) if tax >= 1 else '0'}")
+        M["cgt_scenarios"] = " / ".join(parts)
     return M
 
 

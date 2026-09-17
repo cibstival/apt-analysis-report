@@ -20,7 +20,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from lib_report import (PY_M2, acquisition_tax_formula, brokerage_formula, compute_metrics, fill, find_unfilled, half_key, load_json, load_policy, load_trades,
+from lib_report import (PY_M2, acquisition_tax_formula, brokerage_formula, capital_gains_formula, ltcg_rate, compute_metrics, fill, find_unfilled, half_key, load_json, load_policy, load_trades,
                         parse_date, safe_sheet)
 
 F = "Arial"
@@ -676,9 +676,12 @@ def build_analysis_sheet(C):
     md = ol.get("model", {})
     pol = load_policy(); PT, PB, PL = pol["acquisition_tax"], pol["brokerage"], pol["loan"]
     EDU = 1 + PT["local_education_tax_ratio"]; VAT = 1 + PB["vat_ratio"]; SELL = PB["sell_rate_simplified"]
-    sub("3. 3년 보유 손익 모델 (1세대 1주택·실거주 가정, 노란 칸 수정 가능)")
+    CG = pol["capital_gains"]; ud_ = apt["user_deal"]
+    ONE_HOME = 1 if md.get("one_home", 1) == 1 else 0
+    LTCG0 = md.get("ltcg", ltcg_rate(pol, 3, ONE_HOME == 1, bool(ud_.get("resident", True))))
+    sub(f"3. 3년 보유 손익 모델 (노란 칸 수정 가능 · 매도가 {CG['high_value_threshold']/10000:g}억 초과분 양도세 자동 계산)")
     base_r = ROW[0]
-    keys = ["LTV", "CAP", "LOAN", "RATE", "TAXR", "TAX", "BRK", "ETC", "ACQ", "CASH", "HOLD", "OPP", "SAVE"]
+    keys = ["LTV", "CAP", "LOAN", "RATE", "TAXR", "TAX", "BRK", "ETC", "ACQ", "CASH", "HOLD", "OPP", "SAVE", "HOME1", "HV", "LTCG", "BDED"]
     MI = {k: f"$F${base_r+i}" for i, k in enumerate(keys)}; MI["P0"] = P0
     model = [("LTV", "대출 LTV", md.get("ltv", PL["ltv_default"]), "0%", md.get("ltv_note", "")),
              ("CAP", "주담대 한도 (만원)", md.get("loan_cap", PL["loan_cap_default"]), "#,##0", md.get("cap_note", "")),
@@ -692,23 +695,30 @@ def build_analysis_sheet(C):
              ("CASH", "투입 현금 (만원)", "={P0}-{LOAN}+{ACQ}".format(**MI), "#,##0", "거래가 − 대출 + 취득비용"),
              ("HOLD", "연간 보유세 (만원)", md.get("holding_tax", PL["holding_tax_default"]), "#,##0", md.get("holding_note", "추정치")),
              ("OPP", "예금 기회비용 금리 (연)", md.get("deposit_rate", PL["deposit_rate_default"]), "0.0%", md.get("deposit_note", "")),
-             ("SAVE", "실거주 주거비 절감 (연, 만원)", md.get("housing_saving", 0), "#,##0", md.get("saving_note", "전세·월세로 살았다면 들었을 비용"))]
+             ("SAVE", "실거주 주거비 절감 (연, 만원)", md.get("housing_saving", 0), "#,##0", md.get("saving_note", "전세·월세로 살았다면 들었을 비용")),
+             ("HOME1", "1세대 1주택 비과세 요건 충족 (1=예, 0=아니오)", ONE_HOME, "0", "예: 양도가 고가주택 기준 이하 비과세, 초과분만 과세 / 아니오: 양도차익 전액 과세(일반 장특공제)"),
+             ("HV", "고가주택 기준 (만원)", CG["high_value_threshold"], "#,##0", f"{CG['source']}, {CG['effective_from']}~"),
+             ("LTCG", "장기보유특별공제율 (3년 보유 기준)", LTCG0, "0%", ("1세대 1주택·거주 시 보유 12%+거주 12%" if ONE_HOME and ud_.get("resident", True) else "일반(표1) 3년 6%") + f" — {CG['ltcg_note']}"),
+             ("BDED", "양도소득 기본공제 (만원)", CG["basic_deduction"], "#,##0", f"연 1회. 세율은 기본세율 {len(CG['brackets'])}구간 누진 + 지방소득세 {CG['local_tax_ratio']:.0%} (policy.json)")]
     inputs([(k, lab, v, fm, nt) for k, lab, v, fm, nt in model])
     nxt()
-    spec = [(2, "시나리오"), (2, "3년 후 매도가"), (1, "매도비용"), (1, "3년 이자"), (1, "3년 보유세"), (1, "주거비 절감"), (2, "순손익 (만원)"), (1, "투입현금 수익률"), (1, "기회비용 차감 후")]
+    spec = [(1, "시나리오"), (1, "3년 후 매도가"), (1, "매도비용"), (1, "3년 이자"), (1, "3년 보유세"), (1, "주거비 절감"), (1, "양도차익"), (1, "양도세 (지방세 포함)"), (2, "세후 순손익 (만원)"), (1, "투입현금 수익률"), (1, "기회비용 차감 후")]
     rows = []; R0 = ROW[0] + 1
     for i, rs in enumerate(outs):
-        rr = R0 + i; P3 = f"D{rr}"
+        rr = R0 + i; P3 = f"C{rr}"
         rows.append([f"=B{rs}", f"=I{rs}", "=" + brokerage_formula(P3, pol) + f"*{VAT}*{P3}",
                      f"={MI['LOAN']}*{MI['RATE']}*3", f"={MI['HOLD']}*3", f"={MI['SAVE']}*3",
-                     f"={P3}-F{rr}-{P0}-{MI['ACQ']}-G{rr}-H{rr}+I{rr}", f"=J{rr}/{MI['CASH']}", f"=J{rr}-{MI['CASH']}*{MI['OPP']}*3"])
-    table(spec, rows, fmts=[None, "#,##0", "#,##0", "#,##0", "#,##0", "#,##0", '#,##0;[Red]-#,##0', "+0.0%;[Red]-0.0%", "#,##0;[Red]-#,##0"])
+                     f"={P3}-{P0}-{MI['ACQ']}-D{rr}",
+                     "=" + capital_gains_formula(P3, f"H{rr}", MI["HOME1"], MI["HV"], MI["LTCG"], MI["BDED"], pol),
+                     f"={P3}-D{rr}-{P0}-{MI['ACQ']}-E{rr}-F{rr}+G{rr}-I{rr}", f"=J{rr}/{MI['CASH']}", f"=J{rr}-{MI['CASH']}*{MI['OPP']}*3"])
+    table(spec, rows, fmts=[None, "#,##0", "#,##0", "#,##0", "#,##0", "#,##0", '#,##0;[Red]-#,##0', "#,##0", '#,##0;[Red]-#,##0', "+0.0%;[Red]-0.0%", "#,##0;[Red]-#,##0"])
+    note("※ 양도차익 = 매도가 − 취득가 − 취득비용 − 매도 중개보수. 양도세 = (1세대 1주택이면 고가주택 초과분만) × (1 − 장기보유특별공제) − 기본공제 → 기본세율 누진 × (1 + 지방소득세). 1세대 1주택 셀을 0으로 바꾸면 전액 과세로 재계산됩니다.")
     BE = nxt()
     core = f"({P0}+{MI['ACQ']}+{MI['LOAN']}*{MI['RATE']}*3+{MI['HOLD']}*3-{MI['SAVE']}*3"
-    mw(BE, B, 7, "손익분기 3년 누적 상승률 (기회비용 제외 / 포함)", f=font(bold=True, color="FFFFFF"), fill=NAVY, border=True, al=Alignment(indent=1, vertical="center"))
+    mw(BE, B, 7, "손익분기 3년 누적 상승률 (양도세 차감 전, 기회비용 제외 / 포함)", f=font(bold=True, color="FFFFFF"), fill=NAVY, border=True, al=Alignment(indent=1, vertical="center"))
     mw(BE, 8, 9, f"={core})/(1-{SELL})/{P0}-1", f=font(bold=True, size=11, color="C00000"), border=True, fmt='+0.0%', al=Alignment(horizontal="center"))
     mw(BE, 10, 11, f"={core}+{MI['CASH']}*{MI['OPP']}*3)/(1-{SELL})/{P0}-1", f=font(bold=True, size=11, color="C00000"), border=True, fmt='+0.0%', al=Alignment(horizontal="center"))
-    mw(BE, 12, Mx, f"매도 보수 {SELL:.2%} 가정", f=font(size=9, color="595959"), border=True, al=Alignment(indent=1, vertical="center"))
+    mw(BE, 12, Mx, f"매도 보수 {SELL:.2%} 가정. 양도세는 위 표 참고", f=font(size=9, color="595959"), border=True, al=Alignment(indent=1, vertical="center"))
     note(f"※ 이자는 원금 상환 없이 이자만 낸다고 단순화. {pol['capital_gains']['report_note']}. 세법·대출 조건은 개인별로 다르므로 세무사·금융기관 확인 필요. (정책 기준 확인일 {pol['checked_at']})")
     callout(ol.get("model_callout", ""))
     if ol.get("checklist"):

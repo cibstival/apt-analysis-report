@@ -63,7 +63,7 @@
 | `text.region` | | null이면 장 생략. `{title, callout, timeline[[시기,내용]], pipeline[[사업,규모,단계,관계]], pipeline_source, structure[], outlook[[기간,국면,흐름,영향]]}` |
 | `text.outlook.drivers[]` | | `[요인, 현재, ↑/↓/→, 강/중/약, 근거]` 방향에 따라 색 자동 |
 | `text.outlook.scenarios[]` | ○ | `[이름, 확률, 1년 변동, 3년 누적, 전제]` 확률 합 1 |
-| `text.outlook.model` | | `ltv, loan_cap, rate, etc_cost, holding_tax, deposit_rate, housing_saving` + 각 `_note` |
+| `text.outlook.model` | | `ltv, loan_cap, rate, etc_cost, holding_tax, deposit_rate, housing_saving` + 각 `_note`. 양도세: `one_home`(1/0, 기본 1), `ltcg`(장특공제율, null이면 policy.json 표로 자동) |
 | `text.outlook.{drivers_callout, model_callout, checklist[], monitoring[[지표,현재,경고,긍정]]}` | | |
 | `text.sources[]` | | Ⅷ장 출처 bullet |
 
@@ -86,3 +86,12 @@
 | `dong_n` | 19 | 같은 동·같은 평형 실거래 건수(동 표기 거래만) |
 | `dong_max_price`, `dong_max_date`, `dong_max_floor` | 7억 4,000만원 / 2026-07-01 / 9층 | 같은 동 최고가. 거래 없으면 키 없음 |
 | `dong_avg_price`, `user_vs_dong_max` | 6억 4,929만원 / +13.5% | 같은 동 평균·최고가 대비 |
+
+### 양도세·세후 손익 플레이스홀더 (12억 초과 매도 대응)
+| 키 | 값 예 | 비고 |
+|---|---|---|
+| `hv_threshold`, `ltcg_rate` | 12억 / 24% | 고가주택 기준, 적용 장기보유특별공제율 |
+| `sale_bull/base/bear/stress` | 10억 6,440만원 | 시나리오별 3년 후 매도가 |
+| `cgt_bull/base/bear/stress` | 0원 / 199만원 | 시나리오별 양도세(지방소득세 포함). 12억 이하·1세대 1주택이면 0 |
+| `net_bull/base/bear/stress` | -3,831만원 | 세후 순손익(엑셀 표와 동일 로직) |
+| `cgt_scenarios` | 강세 10.64억 → 양도세 0 / … | 한 줄 요약 |

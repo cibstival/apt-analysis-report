@@ -106,6 +106,7 @@ python scripts/check_policy.py                        # 정책 기준 확인일 
 `metrics.py` 출력의 `yearly`, `halves`, `placeholders`를 옆에 두고 쓴다. 섹션별 검색어·출처 기준은 `references/research_guide.md`.
 - **숫자는 가능하면 `<<키>>` 플레이스홀더**로 쓴다(예: `<<user_vs_max>>`). 데이터가 바뀌어도 문장이 틀리지 않는다.
 - 동·호가 있으면 `<<user_unit>>`, `<<dong_max_price>>`(같은 동 최고가), `<<user_vs_dong_max>>`, `<<dong_n>>`을 summary·price_callout·checklist에 쓴다. 같은 동 거래가 없으면 `dong_*` 키가 비므로 문장을 단지 전체 기준으로 쓴다(`metrics.py` 출력으로 확인).
+- 손익 모델은 매도가가 12억(policy.json `high_value_threshold`)을 넘으면 양도세를 자동 계산한다. `model.one_home`(1세대 1주택 요건, 기본 1)과 `resident`로 장특공제율이 정해지므로 0-b에서 받은 실거주·무주택 정보를 반영하고, 고가 단지면 `<<cgt_scenarios>>`·`<<net_base>>`를 summary·model_callout에 쓴다.
 - `side`가 매수면 checklist·시나리오를 매수자 관점(자금·실거주·하방), 매도면 매도자 관점(호가 설정·거래 공백·세금)으로 쓴다.
 - `complex.phases`: 연도별 가격·거래 흐름을 금리 국면과 묶어 6~8개 국면으로.
 - `episode`: `halves`에서 가장 설명이 필요한 구간(금리와 거래량이 반대로 움직인 반기, 급락, 거래절벽 등)을 골라 당시 기사로 원인을 분석한다. 마땅한 구간이 없으면 `"episode": null`(섹션 자동 생략).
