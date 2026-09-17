@@ -1,4 +1,4 @@
-# apt-analysis-report (Claude Code 스킬)
+# apt-saramamra — 아파트 살까말까 (Claude Code 스킬)
 
 아파트 단지명만 바꾸면 같은 구조의 엑셀 분석 보고서를 다시 만들어 주는 Claude Code 스킬입니다.
 창신쌍용1단지 보고서(요약 차트, 단지 종합 분석, 데이터, 거래량, 실거래, 금리 이력, 출처)가 기본 형태입니다.
@@ -8,15 +8,15 @@
 
 ```bash
 # 프로젝트 단위(권장): 스킬을 쓸 프로젝트 폴더에서
-git clone https://github.com/cibstival/apt-analysis-report .claude/skills/apt-analysis-report
+git clone https://github.com/cibstival/apt-saramamra .claude/skills/apt-saramamra
 
 # 또는 모든 프로젝트에서 쓰려면 (Windows는 %USERPROFILE%\.claude\skills\)
-git clone https://github.com/cibstival/apt-analysis-report ~/.claude/skills/apt-analysis-report
+git clone https://github.com/cibstival/apt-saramamra ~/.claude/skills/apt-saramamra
 
 pip install openpyxl          # 필수
 # 선택: LibreOffice (수식 오류 자동 검사·PDF 미리보기용)
 ```
-설치 후 해당 폴더에서 Claude Code를 (재)시작하면 `/apt-analysis-report` 스킬이 자동으로 잡힙니다.
+설치 후 해당 폴더에서 Claude Code를 (재)시작하면 `/apt-saramamra` 스킬이 자동으로 잡힙니다.
 git이 없으면 GitHub 페이지의 **Code → Download ZIP**을 받아 위 경로에 풀어도 됩니다(폴더 바로 아래에 `SKILL.md`가 오도록).
 
 업데이트: 설치 폴더에서 `git pull` (스킬이 실행 때마다 스스로 `git pull --ff-only`를 시도합니다)
@@ -40,6 +40,11 @@ export MOLIT_API_KEY="발급받은키"                      # macOS/Linux
 키가 없으면 rt.molit.go.kr 에서 내려받은 파일을 넘겨주거나, Claude가 공개 페이지의 실거래 목록을 옮겨 적습니다.
 
 ## 2. 사용 (Claude Code에 이렇게 말하면 됩니다)
+가장 간단한 방법: **`/apt-saramamra`** 라고만 치면 단지명·거래가·동호·매수/매도를 한 번에 묻고 바로 시작합니다.
+```
+/apt-saramamra
+/apt-saramamra 홍은현대아파트 101동 1102호 8.4억 매수
+```
 ```
 홍은현대아파트 101동 1102호 8억 4천에 사는 거 어떨까?
 ```
@@ -60,7 +65,7 @@ Claude가 SKILL.md 순서대로 ① 시장 데이터 갱신 ② 단지 정보·�
 
 ## 3. 직접 실행
 ```bash
-cd .claude/skills/apt-analysis-report
+cd .claude/skills/apt-saramamra
 python scripts/build_report.py --apt config/apartments/changsin_ssangyong1.json --out output/창신쌍용1단지.xlsx
 python scripts/metrics.py --apt config/apartments/changsin_ssangyong1.json     # 문장에 쓸 수치 확인
 python scripts/verify_xlsx.py output/창신쌍용1단지.xlsx                        # 수식 오류 검사
