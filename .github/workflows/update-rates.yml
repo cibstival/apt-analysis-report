@@ -22,7 +22,7 @@ jobs:
       - name: Update base rates
         env:
           ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
-        run: python scripts/update_rates.py
+        run: python scripts/update_rates.py || [ $? -eq 2 ]
       - name: Policy staleness report (정보용, 실패시켜도 커밋은 진행)
         run: python scripts/check_policy.py || true
       - name: Commit if changed

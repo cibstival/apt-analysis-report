@@ -26,10 +26,18 @@ MARKET = Path(__file__).resolve().parent.parent / "config" / "market.json"
 UA = {"User-Agent": "Mozilla/5.0 (apt-analysis-report rate updater)"}
 
 
-def get(url, timeout=30):
-    req = urllib.request.Request(url, headers=UA)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read().decode("utf-8", errors="ignore")
+def get(url, timeout=60, tries=3):
+    """GET with 재시도(FRED가 CI 환경에서 간헐적으로 느리다)."""
+    import time
+    last = None
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, headers=UA)
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.read().decode("utf-8", errors="ignore")
+        except Exception as e:  # noqa
+            last = e; time.sleep(5 * (i + 1))
+    raise last
 
 
 def fred_series(sid):
@@ -145,12 +153,12 @@ def main():
     with open(a.market, encoding="utf-8") as f:
         mkt = json.load(f)
 
-    report, changed, mismatch = [], False, False
+    report, changed, mismatch, failed = [], False, False, False
     for cc, fn in (("kr", kr_events), ("us", us_events)):
         try:
             fresh, latest = fn()
         except Exception as e:  # noqa
-            report.append(f"[{cc}] 조회 실패: {e}"); continue
+            report.append(f"[{cc}] 조회 실패: {e}"); failed = True; continue
         if cc == "kr":
             fresh = add_kr_notes(fresh)
         added = merge(mkt["rates"][cc], fresh)
@@ -170,11 +178,14 @@ def main():
         sys.exit(1 if mismatch else 0)
     if a.dry_run:
         return
-    mkt["rates_checked_at"] = date.today().isoformat()
+    if failed and not changed:
+        print("일부 소스 조회 실패, 추가 이벤트 없음 → market.json 변경하지 않음"); sys.exit(2)
+    if not failed:
+        mkt["rates_checked_at"] = date.today().isoformat()
     refresh_sources_rows(mkt)
     with open(a.market, "w", encoding="utf-8", newline="\n") as f:
         json.dump(mkt, f, ensure_ascii=False, indent=1); f.write("\n")
-    print(f"market.json 저장 (rates_checked_at={mkt['rates_checked_at']}, 이벤트 추가={'있음' if changed else '없음'})")
+    print(f"market.json 저장 (rates_checked_at={mkt.get('rates_checked_at')}, 이벤트 추가={'있음' if changed else '없음'})")
 
 
 if __name__ == "__main__":
