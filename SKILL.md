@@ -116,12 +116,13 @@ python scripts/check_policy.py                        # 정책 기준 확인일 
 
 ### 5) 빌드·검증
 ```bash
-python scripts/build_report.py --apt config/apartments/<단지>.json --out output/<단지>_분석보고서_<YYYY-MM-DD>.xlsx
-python scripts/verify_xlsx.py output/<파일>.xlsx
+python scripts/build_report.py --apt config/apartments/<단지>.json      # --out 생략 → <프로젝트 루트>/apt_saramara/<단지>_분석보고서_<오늘>.xlsx
+python scripts/verify_xlsx.py "<빌드 로그에 찍힌 경로>"
 python scripts/metrics.py --apt config/apartments/<단지>.json   # "unfilled"가 빈 리스트인지 확인
 ```
 - 빌드 로그에 `[경고] 치환되지 않은 플레이스홀더`가 나오면 metrics 키 이름을 고친다.
 - 가능하면 LibreOffice로 PDF 렌더링해 차트·표가 깨지지 않는지 눈으로 확인한다.
+- 보고서는 **프로젝트 루트(Claude Code를 실행한 폴더)의 `apt_saramara/`** 에 저장한다. 스킬 폴더 안에 두지 않는다. 사용자가 다른 위치를 말하면 `--out`으로 지정.
 - 사용자에게는 핵심 결론 3~5줄(물건 기준: "101동 1102호 8.4억은 같은 동 최고가 대비 +13%…"), 추정치로 들어간 항목, 확인하지 못한 항목(예: 동 정보, KB시세 날짜)을 짧게 보고한다. 매수·매도 권유 표현은 쓰지 않고 판단 조건을 제시한다.
 
 ## 반드시 지킬 원칙

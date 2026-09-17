@@ -750,13 +750,33 @@ def build_analysis_sheet(C):
     cs.page_setup.orientation = "portrait"; cs.page_setup.fitToWidth = 1; cs.sheet_properties.pageSetUpPr.fitToPage = True; cs.page_setup.fitToHeight = 0
 
 
+def default_out_dir():
+    """보고서 저장 폴더: <프로젝트 루트>/apt_saramara. 프로젝트 루트 = 현재 폴더에서 위로 올라가며 .claude 를 가진 첫 폴더
+    (스킬이 .claude/skills/ 안에 있으면 그 .claude 의 부모). 못 찾으면 현재 폴더. 환경변수 APT_SARAMARA_OUT 이 있으면 그것을 우선."""
+    import os
+    if os.environ.get("APT_SARAMARA_OUT"):
+        return Path(os.environ["APT_SARAMARA_OUT"])
+    for base in (Path.cwd(), Path(__file__).resolve().parent):
+        for d in (base, *base.parents):
+            if d.name == ".claude":
+                return d.parent / "apt_saramara"
+            if (d / ".claude").is_dir():
+                return d / "apt_saramara"
+    return Path.cwd() / "apt_saramara"
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="아파트 단지 분석 엑셀 보고서 생성")
     ap.add_argument("--apt", required=True, help="config/apartments/<단지>.json")
     ap.add_argument("--market", default=str(Path(__file__).resolve().parent.parent / "config" / "market.json"))
-    ap.add_argument("--out", default=None)
+    ap.add_argument("--out", default=None, help="저장 경로. 생략하면 <프로젝트 루트>/apt_saramara/<단지>_분석보고서_<날짜>.xlsx")
     a = ap.parse_args()
     apt = load_json(a.apt); mkt = load_json(a.market)
-    out = a.out or f"output/{apt['name']}_분석보고서_{mkt['as_of']}.xlsx"
-    p, M = build(a.apt, a.market, out)
-    print(f"생성 완료: {p}")
+    if a.out:
+        out = Path(a.out)
+    else:
+        from datetime import date as _d
+        out = default_out_dir() / f"{apt['name']}_분석보고서_{_d.today().isoformat()}.xlsx"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    p, M = build(a.apt, a.market, str(out))
+    print(f"생성 완료: {Path(p).resolve()}")

@@ -49,7 +49,7 @@ git이 없으면 GitHub 페이지의 **Code → Download ZIP**을 받아 위 경
 1. **최신화 게이트** — `git pull`, 한·미 기준금리 자동 확인, 정책 기준 확인일 점검(30일 초과 시 웹검색으로 재확인)
 2. **실거래·전세 수집** — 국토부 실거래가 공개시스템에서 키 없이 직접 다운로드(동·층 포함)
 3. **조사** — 단지 정보, 지역 정비사업·교통, 시장 동향, 주담대 금리 등을 웹검색해 설정 JSON 작성
-4. **빌드·검증** — 엑셀 생성 후 미치환 항목·수식 오류 검사, `output/`에 저장
+4. **빌드·검증** — 엑셀 생성 후 미치환 항목·수식 오류 검사, **프로젝트 폴더의 `apt_saramara/`** 에 저장
 
 5~10분 정도 걸리고, 마지막에 핵심 결론 3~5줄과 추정치·미확인 항목을 알려줍니다.
 
@@ -75,8 +75,8 @@ python scripts/check_policy.py                                              # �
 python scripts/update_rates.py --dry-run                                    # 기준금리 소스 대조
 python scripts/fetch_rtms_direct.py --apt config/apartments/hongeun_hyundai.json   # 실거래 다운로드
 python scripts/metrics.py --apt config/apartments/hongeun_hyundai.json      # 문장에 쓸 수치·플레이스홀더
-python scripts/build_report.py --apt config/apartments/hongeun_hyundai.json --out output/홍은현대.xlsx
-python scripts/verify_xlsx.py output/홍은현대.xlsx                          # LibreOffice 있을 때 수식 검사
+python scripts/build_report.py --apt config/apartments/hongeun_hyundai.json   # → <프로젝트 루트>/apt_saramara/홍은현대아파트_분석보고서_<오늘>.xlsx
+python scripts/verify_xlsx.py ../../../apt_saramara/홍은현대아파트_분석보고서_<오늘>.xlsx   # LibreOffice 있을 때 수식 검사
 ```
 
 ## 6. 무엇이 고정이고 무엇이 바뀌나
