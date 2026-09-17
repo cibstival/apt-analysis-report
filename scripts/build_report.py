@@ -444,7 +444,9 @@ def build_analysis_sheet(C):
     # ---------------- Ⅱ 가격 진단
     SEC["price"] = banner(NUM["price"] + ".", TITLE["price"]); sub("입력값")
     pr = apt.get("price_refs", {}); nb = pr.get("new_build"); pp = pr.get("private_price")
-    rows_in = [("P0", "거래가격 (만원)", apt["user_deal"]["price"], "#,##0", apt["user_deal"].get("note", "사용자 입력")),
+    ud = apt["user_deal"]
+    rows_in = [("P0", "거래가격 (만원)", ud["price"], "#,##0", ud.get("note", "사용자 입력")),
+               ("UNIT", "물건 (동·호·층)", M.get("user_unit", ""), None, f"{M.get('user_side','미확인')} 검토" + (f" · {ud['unit_note']}" if ud.get("unit_note") else "")),
                ("PY", "공급평형 (평)", focus, "0", f"{focus}평형"),
                ("AREA", "전용면적 (㎡)", ft["area"], "0.0", f"전용 약 {ft['area']/PY_M2:.1f}평")]
     if pp: rows_in.append(("PRIV", pp["label"] + " (만원)", pp["value"], "#,##0", pp.get("source", "")))
@@ -467,6 +469,15 @@ def build_analysis_sheet(C):
     if fh:
         lh = fh[-1]; nlh = sum(1 for t in trades if t["pyeong"] == focus and t["include"] and t["half"] == lh)
         addrow("havg", f"{focus}평 {lh} 반기 평균 실거래", f'=AVERAGEIFS({R("G")},{R("D")},{focus},{R("B")},"{lh}",{R("I")},1)', f"=F{{r}}/({AREA}/3.3058)", f"{nlh}건 평균")
+    udong = M.get("_user_dong"); dong_note = None
+    if udong:
+        dm = M.get("_dong_max"); dn = M.get("dong_n", "0")
+        if dm:
+            addrow("dmax", f"{udong}동 {focus}평 실거래 최고가", f'=_xlfn.MAXIFS({R("G")},{R("D")},{focus},{R("I")},1,{R("C")},"{udong}")', f"=F{{r}}/({AREA}/3.3058)",
+                   f"{dm['date']:%Y.%m.%d} · {dm['floor']}층 · 같은 동 {dn}건" if dm["floor"] else f"같은 동 {dn}건")
+            addrow("davg", f"{udong}동 {focus}평 평균 실거래", f'=AVERAGEIFS({R("G")},{R("D")},{focus},{R("I")},1,{R("C")},"{udong}")', f"=F{{r}}/({AREA}/3.3058)", f"동 표기 거래 {dn}건 평균(전 기간)")
+        else:
+            dong_note = f"※ {udong}동 {focus}평은 국토부 자료에 동 표기 거래가 없어 단지 전체 기준으로 판단합니다."
     if ft.get("kb_price"): addrow("kb", f"{focus}평 KB 매매시세 ({apt.get('kb_asof','')})", f"='{SN_T}'!$P${TYROW[focus]}", f"=F{{r}}/({AREA}/3.3058)", "KB 일반평균가")
     if pp: addrow("priv", pp["label"], f"={IN['PRIV']}", f"=F{{r}}/({AREA}/3.3058)", "민간 시세")
     addrow("user", "사용자 거래가", f"={P0}", f"=F{{r}}/({AREA}/3.3058)", "검토 대상", hl=True)
@@ -482,6 +493,7 @@ def build_analysis_sheet(C):
     addrow("low", f"{G['low']['name']} 평균 평단가 × 전용{ft['area']/PY_M2:.1f}평", f"=데이터!$D${L}*({AREA}/3.3058)", f"=데이터!$D${L}", "'데이터' 시트 추정치")
     addrow("high", f"{G['high']['name']} 평균 평단가 × 전용{ft['area']/PY_M2:.1f}평", f"=데이터!$C${L}*({AREA}/3.3058)", f"=데이터!$C${L}", "'데이터' 시트 추정치")
     table(spec, rows, fmts=[None, "#,##0", '+0.0%;-0.0%;0.0%', "#,##0", None], fills=fills)
+    if dong_note: note(dong_note)
     JR = None
     if "JEON" in IN:
         JR = nxt()
@@ -713,7 +725,7 @@ def build_analysis_sheet(C):
 
     # ---------------- KPI 카드
     kb_ref = f"=F{tag['kb']}" if "kb" in tag else None
-    cards = [(f"거래가 ({focus}평)", f"={P0}", '#,##0"만원"', f"전용 {ft['area']}㎡"),
+    cards = [(f"거래가 ({focus}평, {M.get('user_unit','')})", f"={P0}", '#,##0"만원"', f"전용 {ft['area']}㎡ · {M.get('user_side','미확인')}"),
              (f"{focus}평 최고가 대비", f"={P0}/F{tag['max']}-1", '+0.0%;-0.0%', f"직전 최고 {M.get('focus_max_price','')}"),
              ("KB시세 대비", (f"={P0}/F{tag['kb']}-1" if "kb" in tag else "-"), '+0.0%;-0.0%', f"KB {M.get('kb_focus','-')}"),
              ("3년 손익분기 상승률", f"=H{BE}", '+0.0%', "취득·이자·보유비 기준")]

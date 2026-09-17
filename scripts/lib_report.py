@@ -206,6 +206,25 @@ def compute_metrics(apt, mkt, trades):
         M["focus_max_floor"] = f"{mx['floor']}층" if mx["floor"] else ""
         M["user_vs_max"] = pct(user / mx["price"] - 1)
         M["_focus_max"] = mx
+    # 사용자 물건(동·호·층·매수/매도)과 같은 동 실거래 비교
+    ud = apt["user_deal"]
+    dong = str(ud.get("dong") or "").strip(); ho = str(ud.get("ho") or "").strip()
+    floor = ud.get("floor") or (int(ho[:-2]) if ho[:-2].isdigit() else None)
+    M["user_dong"] = f"{dong}동" if dong else ""; M["user_ho"] = f"{ho}호" if ho else ""
+    M["user_floor"] = f"{floor}층" if floor else ""
+    M["user_unit"] = " ".join(x for x in (M["user_dong"], M["user_ho"] or M["user_floor"]) if x) or "동·호 미입력"
+    M["user_side"] = ud.get("side", "미확인")
+    M["_user_dong"] = dong; M["_user_floor"] = floor
+    if dong:
+        dtr = [t for t in ftr if str(t.get("dong") or "") == dong]
+        M["dong_n"] = str(len(dtr))
+        if dtr:
+            dm = max(dtr, key=lambda t: (t["price"], t["date"]))
+            M["dong_max_price"] = eok(dm["price"]); M["dong_max_date"] = dm["date"].isoformat()
+            M["dong_max_floor"] = f"{dm['floor']}층" if dm["floor"] else ""
+            M["dong_avg_price"] = eok(sum(t["price"] for t in dtr) / len(dtr))
+            M["user_vs_dong_max"] = pct(user / dm["price"] - 1)
+            M["_dong_max"] = dm
     if ft.get("kb_price"):
         M["kb_focus"] = eok(ft["kb_price"]); M["user_vs_kb"] = pct(user / ft["kb_price"] - 1)
     if ft.get("kb_jeonse"):

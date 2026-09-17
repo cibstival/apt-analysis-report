@@ -34,8 +34,15 @@
  "user_deal": {
   "price": 0,
   "pyeong": 0,
-  "note": "사용자 입력 거래가 (없으면 기준가로 최근 최고가·KB시세 사용하고 그렇게 명시)",
-  "side": "매수/매도/미확인"
+  "dong": "",
+  "ho": "",
+  "floor": null,
+  "side": "매수/매도/보유/미확인",
+  "resident": null,
+  "first_home": null,
+  "loan_plan": null,
+  "note": "사용자 입력 원문 요약 (예: '101동 1102호 8.4억 매수 검토'). 거래가가 없으면 기준가로 최근 최고가를 쓰고 그렇게 명시",
+  "unit_note": "(선택) 물건 특이사항: 올수리, 남향, 확장 등"
  },
  "price_refs": {
   "private_price": {

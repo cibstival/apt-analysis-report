@@ -46,7 +46,9 @@
 | `kb_asof` | | KB시세 기준월 표기 |
 | `types[]` | ○ | `{pyeong, area, households, kb_price, kb_jeonse, jeonse_note}` pyeong=공급평형 정수, area=전용㎡ |
 | `compare_pyeong` | | 비교용 두 번째 평형(null 가능) |
-| `user_deal.{price,pyeong,note,side}` | ○ | 거래가(만원)·평형. 거래가 없으면 기준가 사용 후 note에 명시 |
+| `user_deal.{price,pyeong,note,side}` | ○ | 거래가(만원)·평형·매수/매도/보유/미확인. 거래가 없으면 기준가 사용 후 note에 명시 |
+| `user_deal.{dong,ho,floor}` | | 물건 동·호·층(문자열/정수). `floor`가 없으면 호수 앞자리로 계산. 동이 있으면 Ⅱ장에 "같은 동 최고가·평균" 행과 `dong_*` 플레이스홀더가 생김 |
+| `user_deal.{resident,first_home,loan_plan,unit_note}` | | 실거주 여부·무주택 여부·대출 계획(만원)·물건 특이사항. 텍스트·checklist·model 작성에 참고 |
 | `price_refs.private_price` | | `{label, value, source}` 민간 시세 |
 | `price_refs.new_build` | | `{label, value, area, member_ratio, general_label, note, source, ratio_source}` member_ratio가 있으면 일반분양가 환산 행 자동 추가 |
 | `sources_rows[]` | | 출처_가정 시트에 추가될 단지별 행 |
@@ -74,3 +76,13 @@
 ## 4. 플레이스홀더 (`<<키>>`)
 `python scripts/metrics.py --apt ...`의 `placeholders`가 최신 목록이다. 주요 키:
 `apt_name, focus_label, user_price, user_price_short, user_ppp, focus_max_price, focus_max_date, focus_max_floor, user_vs_max, kb_focus, user_vs_kb, jeonse_focus, jeonse_ratio, private_price, user_vs_private, newbuild_member, newbuild_general, user_vs_newbuild_general, compare_label, compare_max_price, compare_max_ppp, user_ppp_vs_compare, focus_max_drawdown, focus_drawdown_desc, kr_rate_now, us_rate_now, spread_now, corr_spread_volume, corr_krrate_volume, corr_dkr_dvolume, exp_1y, exp_3y, breakeven_3y, breakeven_3y_opp, loan_amount, cash_needed, acq_cost`
+
+### 물건(동·호) 관련 플레이스홀더
+| 키 | 값 예 | 비고 |
+|---|---|---|
+| `user_unit` | 101동 1102호 | 동·호 없으면 "동·호 미입력" |
+| `user_dong`, `user_ho`, `user_floor` | 101동 / 1102호 / 11층 | 각각 없으면 빈 문자열 |
+| `user_side` | 매수 | `user_deal.side` |
+| `dong_n` | 19 | 같은 동·같은 평형 실거래 건수(동 표기 거래만) |
+| `dong_max_price`, `dong_max_date`, `dong_max_floor` | 7억 4,000만원 / 2026-07-01 / 9층 | 같은 동 최고가. 거래 없으면 키 없음 |
+| `dong_avg_price`, `user_vs_dong_max` | 6억 4,929만원 / +13.5% | 같은 동 평균·최고가 대비 |
