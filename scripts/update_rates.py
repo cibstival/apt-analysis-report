@@ -23,7 +23,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 MARKET = Path(__file__).resolve().parent.parent / "config" / "market.json"
-UA = {"User-Agent": "Mozilla/5.0 (apt-saramamra rate updater)"}
+UA = {"User-Agent": "Mozilla/5.0 (apt-saramara rate updater)"}
 
 
 def get(url, timeout=60, tries=3):

@@ -1,4 +1,4 @@
-# apt-saramamra — 아파트 살까말까 (Claude Code 스킬)
+# apt-saramara — 아파트 살까말까 (Claude Code 스킬)
 
 "○○아파트 101동 1102호 8억에 사는 거 어때?" 한 줄이면 국토부 실거래·전세, 한·미 기준금리, 대출·세제 정책, 지역 개발 이슈를 조사해
 **같은 구조의 엑셀 분석 보고서**(요약 차트 · 단지 종합 분석 · 같은 동 실거래 비교 · 금리차 상관 · 과거 이상 구간 분석 · 지역 전망 · 가격 시나리오 · 3년 손익 모델 · 출처)를 만들어 주는 Claude Code 스킬입니다.
@@ -8,15 +8,15 @@
 
 ```bash
 # 프로젝트 단위(권장): 스킬을 쓸 프로젝트 폴더에서
-git clone https://github.com/cibstival/apt-saramamra .claude/skills/apt-saramamra
+git clone https://github.com/cibstival/apt-saramara .claude/skills/apt-saramara
 
 # 또는 모든 프로젝트에서 쓰려면 (Windows는 %USERPROFILE%\.claude\skills\)
-git clone https://github.com/cibstival/apt-saramamra ~/.claude/skills/apt-saramamra
+git clone https://github.com/cibstival/apt-saramara ~/.claude/skills/apt-saramara
 
 pip install openpyxl requests   # 필수
 # 선택: LibreOffice (수식 오류 자동 검사·PDF 미리보기용)
 ```
-설치 후 해당 폴더에서 Claude Code를 (재)시작하면 `/apt-saramamra` 스킬이 자동으로 잡힙니다.
+설치 후 해당 폴더에서 Claude Code를 (재)시작하면 `/apt-saramara` 스킬이 자동으로 잡힙니다.
 git이 없으면 GitHub 페이지의 **Code → Download ZIP**을 받아 위 경로에 풀어도 됩니다(폴더 바로 아래에 `SKILL.md`가 오도록).
 
 업데이트: 설치 폴더에서 `git pull` (스킬이 실행 때마다 스스로 `git pull --ff-only`를 시도합니다)
@@ -24,13 +24,13 @@ git이 없으면 GitHub 페이지의 **Code → Download ZIP**을 받아 위 경
 ## 2. 사용
 ### 가장 간단한 방법
 ```
-/apt-saramamra
+/apt-saramara
 ```
 단지명 · 거래가 · 동·호 · 매수/매도/보유·실거주 여부를 **한 번에** 묻고 바로 시작합니다. 모르는 항목은 비워두면 됩니다.
 
 ### 한 줄로 바로 시작
 ```
-/apt-saramamra 홍은현대아파트 101동 1102호 8.4억 매수
+/apt-saramara 홍은현대아파트 101동 1102호 8.4억 매수
 ```
 ```
 홍은현대아파트 101동 1102호 8억 4천에 사는 거 어떨까?
@@ -70,7 +70,7 @@ git이 없으면 GitHub 페이지의 **Code → Download ZIP**을 받아 위 경
 
 ## 5. 직접 실행
 ```bash
-cd .claude/skills/apt-saramamra
+cd .claude/skills/apt-saramara
 python scripts/check_policy.py                                              # 정책 기준 확인일 점검
 python scripts/update_rates.py --dry-run                                    # 기준금리 소스 대조
 python scripts/fetch_rtms_direct.py --apt config/apartments/hongeun_hyundai.json   # 실거래 다운로드
