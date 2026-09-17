@@ -4,21 +4,29 @@
 창신쌍용1단지 보고서(요약 차트, 단지 종합 분석, 데이터, 거래량, 실거래, 금리 이력, 출처)가 기본 형태입니다.
 
 ## 1. 설치
+**사전 준비**: [Claude Code](https://claude.com/claude-code) 설치 + Python 3.10 이상
+
 ```bash
-# 프로젝트 단위(권장): 프로젝트 루트에서
-mkdir -p .claude/skills
-unzip apt-analysis-report.zip -d .claude/skills/
-# 또는 모든 프로젝트에서 쓰려면 ~/.claude/skills/ 아래에 풀기
+# 프로젝트 단위(권장): 스킬을 쓸 프로젝트 폴더에서
+git clone https://github.com/cibstival/apt-analysis-report .claude/skills/apt-analysis-report
+
+# 또는 모든 프로젝트에서 쓰려면 (Windows는 %USERPROFILE%\.claude\skills\)
+git clone https://github.com/cibstival/apt-analysis-report ~/.claude/skills/apt-analysis-report
 
 pip install openpyxl          # 필수
 # 선택: LibreOffice (수식 오류 자동 검사·PDF 미리보기용)
 ```
+설치 후 해당 폴더에서 Claude Code를 (재)시작하면 `/apt-analysis-report` 스킬이 자동으로 잡힙니다.
+git이 없으면 GitHub 페이지의 **Code → Download ZIP**을 받아 위 경로에 풀어도 됩니다(폴더 바로 아래에 `SKILL.md`가 오도록).
+
+업데이트: 설치 폴더에서 `git pull`
 
 ### 국토부 실거래 API 키 (선택이지만 권장)
 1. data.go.kr 에서 "국토교통부_아파트 매매 실거래가 상세 자료" 활용신청
 2. 발급된 일반 인증키(Decoding)를 환경변수로 설정
 ```bash
-export MOLIT_API_KEY="발급받은키"
+export MOLIT_API_KEY="발급받은키"                      # macOS/Linux
+[Environment]::SetEnvironmentVariable("MOLIT_API_KEY","발급받은키","User")   # Windows PowerShell
 ```
 키가 없으면 rt.molit.go.kr 에서 내려받은 파일을 넘겨주거나, Claude가 공개 페이지의 실거래 목록을 옮겨 적습니다.
 
