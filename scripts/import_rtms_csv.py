@@ -37,12 +37,12 @@ for f in a.files:
     for r in read_rows(f):
         if want not in col(r, "단지명").replace(" ", ""): continue
         if jibun and jibun not in col(r, "번지"): continue
-        if col(r, "해제사유"): continue
+        if col(r, "해제사유").strip("- "): continue   # 빈 값은 "-"로 온다
         area = float(col(r, "전용면적")); py = area_to_pyeong(area, apt["types"])
         if py is None: continue
         ym = col(r, "계약년월"); dd = int(col(r, "계약일"))
         out.append({"date": f"{ym[:4]}-{ym[4:6]}-{dd:02d}", "pyeong": py, "area": area, "price": col(r, "거래금액").replace(",", ""),
-                    "floor": col(r, "층"), "dong": col(r, "동") if "동" in r else "", "include": "",
+                    "floor": col(r, "층"), "dong": (r.get("동") or "").strip("- ") if "동" in r else "", "include": "",
                     "note": "직거래" if "직거래" in col(r, "거래유형") else ""})
 out.sort(key=lambda x: x["date"])
 p = root / apt["trades_csv"]; p.parent.mkdir(parents=True, exist_ok=True)

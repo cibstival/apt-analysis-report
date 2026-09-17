@@ -156,7 +156,7 @@ def build(apt_path, mkt_path, out_path):
         wt.cell(r, 16).number_format = "#,##0"
         wt.cell(r, 17, f'=IF(P{r}="","",P{r}/(N{r}/3.3058))').number_format = "#,##0"; wt.cell(r, 17).border = box; wt.cell(r, 17).font = font()
     wt.cell(WROW, 13, "세대가중 평단가").font = font(bold=True)
-    wt.cell(WROW, 17, f"=SUMPRODUCT(O{TY0}:O{TY1},Q{TY0}:Q{TY1})/SUM(O{TY0}:O{TY1})").number_format = "#,##0"
+    wt.cell(WROW, 17, f'=IFERROR(SUMPRODUCT(O{TY0}:O{TY1},Q{TY0}:Q{TY1})/SUM(O{TY0}:O{TY1}),"")').number_format = "#,##0"  # 세대수·KB시세 미입력 시 공란
     wt.cell(WROW, 17).font = font(bold=True)
     wt.cell(WROW + 1, 13, "※ 마지막(부분) 반기에 신고된 실거래가 없으면 차트 마지막 점은 이 KB시세 세대가중 평단가를 사용").font = font(size=9, color="595959")
     for c, w in zip("ABCDEFGHIJKLMNOPQ", [12, 9, 7, 9, 9, 6, 11, 12, 7, 44, 3, 3, 10, 9, 8, 13, 11]): wt.column_dimensions[c].width = w
