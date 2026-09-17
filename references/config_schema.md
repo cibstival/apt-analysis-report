@@ -1,0 +1,61 @@
+# 설정 파일 스키마
+
+## 목차
+1. market.json (시장 공통)
+2. apartments/<단지>.json (단지별)
+3. 실거래 CSV
+4. 플레이스홀더 목록
+
+---
+## 1. market.json
+| 키 | 설명 |
+|---|---|
+| `as_of` | 작성 기준일 `YYYY-MM-DD`. 금리 조회·보고서 표기에 사용 |
+| `rates.kr[] / rates.us[]` | `{date, rate(소수, 3%=0.03), note}` 결정일 순. 미국은 목표범위 **상단** |
+| `periods[]` | `{label:"2026.06", date:"2026-06-30"}` 반기말. 마지막 부분 반기는 `partial:true`, label에 `*` |
+| `groups.high / groups.low` | `{name, members, ppp[], anchors{label:근거}, is_estimate}` ppp는 periods와 같은 길이(만원/3.3㎡, 전용) |
+| `volume.rows[]` | `{label, seoul, high_share, low_share}` 맨 앞 1행은 증감률 기준 반기, 이후 periods와 1:1. 부분 반기는 값 없이 label만 |
+| `sources_rows[]` | `[구분, 내용]` 출처_가정 시트 상단 |
+
+## 2. apartments/<단지>.json
+| 키 | 필수 | 설명 |
+|---|---|---|
+| `name` | ○ | 보고서·시트 표시 이름 |
+| `sheet_prefix` | | 시트 이름 앞부분(기본 name). `_실거래`, `_분석`이 붙음, 31자 제한 |
+| `address, households, built` | ○ | 표지·개요 |
+| `region.{sido,gu,dong,lawd_cd}` | ○ | lawd_cd = 법정동코드 앞 5자리(시군구). 지역 분석 제목에 dong 사용 |
+| `match.{apt_name_contains,umd,jibun}` | | 국토부 데이터 필터 |
+| `trades_csv` | ○ | 설정 파일 위치 또는 스킬 루트 기준 상대경로 |
+| `trades_note` | | 실거래 시트 안내문 |
+| `outlier_threshold` | | 자동 제외 기준(기본 0.25) |
+| `kb_asof` | | KB시세 기준월 표기 |
+| `types[]` | ○ | `{pyeong, area, households, kb_price, kb_jeonse, jeonse_note}` pyeong=공급평형 정수, area=전용㎡ |
+| `compare_pyeong` | | 비교용 두 번째 평형(null 가능) |
+| `user_deal.{price,pyeong,note,side}` | ○ | 거래가(만원)·평형. 거래가 없으면 기준가 사용 후 note에 명시 |
+| `price_refs.private_price` | | `{label, value, source}` 민간 시세 |
+| `price_refs.new_build` | | `{label, value, area, member_ratio, general_label, note, source, ratio_source}` member_ratio가 있으면 일반분양가 환산 행 자동 추가 |
+| `sources_rows[]` | | 출처_가정 시트에 추가될 단지별 행 |
+| `text.chart_notes[]` | | 요약_차트 하단 `[제목, 본문]` |
+| `text.summary[]` | ○ | 분석 시트 Ⅰ장 결론 bullet |
+| `text.price_callout` | | Ⅱ장 해석 박스 |
+| `text.complex.overview[]` | | `[항목, 내용]` |
+| `text.complex.phases[]` | | `[국면, 금리·정책, 가격·거래, 해석]` |
+| `text.complex.swot` | | `{S,W,O,T}` |
+| `text.episode` | | null이면 장 생략. `{title, year, fact_periods[≤4], callout, trade_events{날짜:이벤트}, factors[[요인,시기,기사요지,함의]], insights[]}` |
+| `text.spread` | | `{callout, interpretation[]}` 상관계수 표는 자동 |
+| `text.region` | | null이면 장 생략. `{title, callout, timeline[[시기,내용]], pipeline[[사업,규모,단계,관계]], pipeline_source, structure[], outlook[[기간,국면,흐름,영향]]}` |
+| `text.outlook.drivers[]` | | `[요인, 현재, ↑/↓/→, 강/중/약, 근거]` 방향에 따라 색 자동 |
+| `text.outlook.scenarios[]` | ○ | `[이름, 확률, 1년 변동, 3년 누적, 전제]` 확률 합 1 |
+| `text.outlook.model` | | `ltv, loan_cap, rate, etc_cost, holding_tax, deposit_rate, housing_saving` + 각 `_note` |
+| `text.outlook.{drivers_callout, model_callout, checklist[], monitoring[[지표,현재,경고,긍정]]}` | | |
+| `text.sources[]` | | Ⅷ장 출처 bullet |
+
+## 3. 실거래 CSV (UTF-8)
+`date,pyeong,area,price,floor,dong,include,note`
+- date `YYYY-MM-DD`, price 만원 정수, pyeong 비우면 area로 자동 매핑
+- include 비우면 자동 판정(동일평형 ±6개월 중앙값 대비 threshold 이상 저가 → 0), 0/1로 쓰면 그대로 사용
+- dong은 확인된 경우만(예: 101)
+
+## 4. 플레이스홀더 (`<<키>>`)
+`python scripts/metrics.py --apt ...`의 `placeholders`가 최신 목록이다. 주요 키:
+`apt_name, focus_label, user_price, user_price_short, user_ppp, focus_max_price, focus_max_date, focus_max_floor, user_vs_max, kb_focus, user_vs_kb, jeonse_focus, jeonse_ratio, private_price, user_vs_private, newbuild_member, newbuild_general, user_vs_newbuild_general, compare_label, compare_max_price, compare_max_ppp, user_ppp_vs_compare, focus_max_drawdown, focus_drawdown_desc, kr_rate_now, us_rate_now, spread_now, corr_spread_volume, corr_krrate_volume, corr_dkr_dvolume, exp_1y, exp_3y, breakeven_3y, breakeven_3y_opp, loan_amount, cash_needed, acq_cost`

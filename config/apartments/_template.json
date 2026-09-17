@@ -1,0 +1,253 @@
+{
+ "_doc": "새 단지 설정 템플릿. 이 파일을 복사해 config/apartments/<영문_단지명>.json 으로 저장하고 채운다. 필드 설명: references/config_schema.md. 텍스트 속 <<키>>는 metrics.py 수치로 자동 치환.",
+ "name": "(공식 단지명)",
+ "sheet_prefix": "(시트 이름 앞부분, 25자 이내)",
+ "address": "(시도 구 동 지번)",
+ "households": 0,
+ "built": "YYYY.MM",
+ "region": {
+  "sido": "",
+  "gu": "",
+  "dong": "",
+  "lawd_cd": "(시군구코드 5자리)"
+ },
+ "match": {
+  "apt_name_contains": "(국토부 데이터상 단지명 일부)",
+  "umd": "(법정동)",
+  "jibun": "(지번)"
+ },
+ "trades_csv": "data/<영문_단지명>_trades.csv",
+ "trades_note": "출처: 국토교통부 실거래가(조회일). C열 '동'은 확인된 거래만. I열 0 = 분석 제외.",
+ "outlier_threshold": 0.25,
+ "kb_asof": "YYYY.M",
+ "types": [
+  {
+   "pyeong": 0,
+   "area": 0.0,
+   "households": 0,
+   "kb_price": null,
+   "kb_jeonse": null,
+   "jeonse_note": ""
+  }
+ ],
+ "compare_pyeong": null,
+ "user_deal": {
+  "price": 0,
+  "pyeong": 0,
+  "note": "사용자 입력 거래가 (없으면 기준가로 최근 최고가·KB시세 사용하고 그렇게 명시)",
+  "side": "매수/매도/미확인"
+ },
+ "price_refs": {
+  "private_price": {
+   "label": "(민간 시세명 평형 (날짜))",
+   "value": null,
+   "source": ""
+  },
+  "new_build": {
+   "label": "(인근 신축/분양 비교 대상과 가격 성격: 조합원분양가 or 일반분양가 or 시세)",
+   "value": null,
+   "area": 59,
+   "member_ratio": null,
+   "general_label": "",
+   "note": "",
+   "source": "",
+   "ratio_source": ""
+  }
+ },
+ "sources_rows": [
+  [
+   "<<apt_name>> 실거래",
+   "(출처·기준일·건수)"
+  ]
+ ],
+ "text": {
+  "chart_notes": [
+   [
+    "① 제목",
+    "내용"
+   ]
+  ],
+  "summary": [
+   "(5개 내외 핵심 결론, <<user_vs_max>> 등 플레이스홀더 활용)"
+  ],
+  "price_callout": "",
+  "complex": {
+   "overview": [
+    [
+     "규모·연식",
+     ""
+    ],
+    [
+     "평형 구성",
+     ""
+    ],
+    [
+     "교통",
+     ""
+    ],
+    [
+     "주차·구조",
+     ""
+    ],
+    [
+     "동별 특징",
+     ""
+    ],
+    [
+     "학군·생활",
+     ""
+    ],
+    [
+     "정비 추진",
+     ""
+    ]
+   ],
+   "overview_source": "",
+   "phases": [
+    [
+     "국면",
+     "금리·정책 환경",
+     "단지 가격·거래",
+     "해석"
+    ]
+   ],
+   "swot": {
+    "S": "",
+    "W": "",
+    "O": "",
+    "T": ""
+   }
+  },
+  "episode": {
+   "title": "(연도)년 분석: (금리와 반대로 움직인 구간 등)",
+   "year": 0,
+   "fact_periods": [
+    "YYYY.06",
+    "YYYY.12"
+   ],
+   "callout": "",
+   "trade_events": {
+    "YYYY-MM-DD": "당시 이벤트"
+   },
+   "factors": [
+    [
+     "요인",
+     "시기",
+     "기사 요지 (출처 매체·날짜)",
+     "단지 함의"
+    ]
+   ],
+   "insights": [
+    ""
+   ]
+  },
+  "spread": {
+   "callout": "결론: 금리차와 단지 거래량 상관계수 <<corr_spread_volume>>, 한국 금리 수준 <<corr_krrate_volume>>, 변화 방향 <<corr_dkr_dvolume>> ...",
+   "interpretation": [
+    ""
+   ]
+  },
+  "region": {
+   "title": "(동/지역명) 심층 분석과 전망",
+   "callout": "",
+   "timeline": [
+    [
+     "시기",
+     "내용"
+    ]
+   ],
+   "pipeline": [
+    [
+     "사업",
+     "규모",
+     "진행 단계",
+     "단지와의 관계"
+    ]
+   ],
+   "pipeline_source": "",
+   "structure": [
+    ""
+   ],
+   "outlook": [
+    [
+     "단기 (~YYYY)",
+     "국면",
+     "예상 흐름",
+     "단지 영향"
+    ]
+   ]
+  },
+  "outlook": {
+   "drivers": [
+    [
+     "요인",
+     "현재 상황",
+     "↑/↓/→",
+     "강/중/약",
+     "근거·출처"
+    ]
+   ],
+   "drivers_callout": "",
+   "scenarios": [
+    [
+     "강세",
+     0.2,
+     0.05,
+     0.15,
+     "전제"
+    ],
+    [
+     "기본",
+     0.4,
+     0.0,
+     0.06,
+     "전제"
+    ],
+    [
+     "약세",
+     0.3,
+     -0.06,
+     -0.03,
+     "전제"
+    ],
+    [
+     "스트레스",
+     0.1,
+     -0.15,
+     -0.1,
+     "전제"
+    ]
+   ],
+   "model": {
+    "ltv": 0.4,
+    "ltv_note": "",
+    "loan_cap": 60000,
+    "cap_note": "",
+    "rate": 0.05,
+    "rate_note": "",
+    "etc_cost": 300,
+    "holding_tax": 150,
+    "holding_note": "",
+    "deposit_rate": 0.035,
+    "deposit_note": "",
+    "housing_saving": 0,
+    "saving_note": ""
+   },
+   "model_callout": "",
+   "checklist": [
+    ""
+   ],
+   "monitoring": [
+    [
+     "지표",
+     "현재",
+     "경고 신호",
+     "긍정 신호"
+    ]
+   ]
+  },
+  "sources": [
+   ""
+  ]
+ }
+}
