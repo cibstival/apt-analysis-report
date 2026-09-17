@@ -7,8 +7,8 @@
   python scripts/update_rates.py --check    # 소스 최신값과 market.json 마지막 값이 다르면 exit 1
 
 소스
-  미국: FRED DFEDTARU/DFEDTARL (연방기금금리 목표범위 상단/하단, 일별). 키 불필요.
-        FRED는 효력일(결정 다음날) 기준이므로 결정일 = 효력일 - 1일로 기록한다.
+  미국: 연준 공식 페이지 openmarket.htm(목표범위 변경 표) 우선, 실패 시 FRED DFEDTARU/DFEDTARL. 둘 다 키 불필요.
+        두 소스 모두 효력일(결정 다음날) 기준이므로 결정일 = 효력일 - 1일로 기록한다.
   한국: 환경변수 ECOS_API_KEY가 있으면 한국은행 ECOS API(722Y001/0101000),
         없으면 한국은행 기준금리 공개 페이지를 파싱한다(페이지 구조가 바뀌면 실패 → 경고만).
 
@@ -51,7 +51,7 @@ def fred_series(sid):
     return out
 
 
-def us_events():
+def us_events_fred():
     """FRED 상단/하단 일별 → 변경일 이벤트. rate=상단(소수), note='하단~상단% (효력 YYYY-MM-DD)'."""
     up = fred_series("DFEDTARU"); lo = dict(fred_series("DFEDTARL"))
     ev, prev = [], None
@@ -62,6 +62,40 @@ def us_events():
                            note=f"{low:.2f}~{v:.2f}% (효력 {d.isoformat()})"))
             prev = v
     return ev, up[-1]
+
+
+def us_events_fed():
+    """연준 공식 페이지(openmarket.htm)의 연도별 표(Date / Increase / Decrease / Level). Date는 효력일."""
+    import html as _h
+    s = get("https://www.federalreserve.gov/monetarypolicy/openmarket.htm")
+    rows, year = [], None
+    for m in re.finditer(r"<h4[^>]*>\s*(\d{4})\s*</h4>|<tr[^>]*>(.*?)</tr>", s, re.S):
+        if m.group(1):
+            year = m.group(1); continue
+        cells = [_h.unescape(re.sub(r"<[^>]+>", "", c)).strip() for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", m.group(2), re.S)]
+        if not (year and len(cells) >= 4 and re.match(r"^[A-Z][a-z]+ \d{1,2}$", cells[0])):
+            continue
+        lv = re.findall(r"\d+(?:\.\d+)?", cells[3])
+        if not lv or int(year) < 2015:
+            continue
+        low, high = (float(lv[0]), float(lv[-1])) if len(lv) >= 2 else (float(lv[0]) - 0.25, float(lv[0]))
+        eff = datetime.strptime(f"{cells[0]} {year}", "%B %d %Y").date()
+        rows.append((eff, low, high))
+    if not rows:
+        raise RuntimeError("연준 페이지에서 목표범위 표를 찾지 못했습니다(구조 변경?)")
+    rows.sort()
+    ev = [dict(date=(eff - timedelta(days=1)).isoformat(), rate=round(high / 100, 4), note=f"{low:.2f}~{high:.2f}% (효력 {eff.isoformat()})")
+          for eff, low, high in rows]
+    return ev, (rows[-1][0], rows[-1][2])
+
+
+def us_events():
+    """연준 공식 페이지 우선(GitHub 러너에서 FRED가 차단되는 경우가 있음), 실패 시 FRED."""
+    try:
+        return us_events_fed()
+    except Exception as e:  # noqa
+        print(f"[경고] 연준 페이지 실패({e}) → FRED로 대체", file=sys.stderr)
+        return us_events_fred()
 
 
 def kr_events_ecos(key):
