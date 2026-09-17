@@ -1,16 +1,31 @@
 # 설정 파일 스키마
 
 ## 목차
+0. policy.json (정책·세제 기준)
 1. market.json (시장 공통)
 2. apartments/<단지>.json (단지별)
 3. 실거래 CSV
 4. 플레이스홀더 목록
 
 ---
+## 0. policy.json
+코드는 세율·요율·기본값을 여기서만 읽는다. `scripts/check_policy.py`가 `checked_at` 경과를 점검한다.
+
+| 키 | 설명 |
+|---|---|
+| `checked_at`, `check_interval_days` | 마지막 확인일과 재확인 주기(일). `check_policy.py --touch`로 갱신 |
+| `changelog[]` | `{date, note, source}` 확인·변경 이력. 출처_가정 시트에 최근 3건 표시 |
+| `acquisition_tax` | 1주택 취득세: `low_upto`(만원) 이하 `low_rate`, `high_from` 초과 `high_rate`, 사이는 선형. `local_education_tax_ratio`(지방교육세/취득세) |
+| `brokerage` | `brackets[{upto, rate}]` 오름차순, 마지막 `upto:null`. `vat_ratio`, `sell_rate_simplified`(손익분기 수식용 매도보수) |
+| `capital_gains` | `assumption`(출처 시트), `report_note`(손익 모델 주석) |
+| `loan` | `*_default`(단지 JSON `outlook.model` 누락 시 기본값), `current{}`(현행 규제 요약, 출처 시트) |
+| `regulation`, `tax_reform` | `current{}`, `status`, `source`, `effective_from`. 출처 시트에 자동 기재 |
+
 ## 1. market.json
 | 키 | 설명 |
 |---|---|
-| `as_of` | 작성 기준일 `YYYY-MM-DD`. 금리 조회·보고서 표기에 사용 |
+| `as_of` | 작성 기준일 `YYYY-MM-DD`. 금리 조회·보고서 표기에 사용. 수작업 항목(periods·groups·volume)과 함께 갱신 |
+| `rates_checked_at` | `update_rates.py`가 마지막으로 공식 소스와 대조한 날. 자동 기록 |
 | `rates.kr[] / rates.us[]` | `{date, rate(소수, 3%=0.03), note}` 결정일 순. 미국은 목표범위 **상단** |
 | `periods[]` | `{label:"2026.06", date:"2026-06-30"}` 반기말. 마지막 부분 반기는 `partial:true`, label에 `*` |
 | `groups.high / groups.low` | `{name, members, ppp[], anchors{label:근거}, is_estimate}` ppp는 periods와 같은 길이(만원/3.3㎡, 전용) |

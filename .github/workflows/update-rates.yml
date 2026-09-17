@@ -1,0 +1,38 @@
+name: update-rates
+
+# 매주 월요일 00:30 UTC(한국 09:30)에 한·미 기준금리를 확인해 config/market.json을 갱신하고 커밋한다.
+# 수동 실행: Actions 탭 → update-rates → Run workflow
+# 선택: 저장소 Settings → Secrets → ECOS_API_KEY 를 넣으면 한국은행 ECOS API를 사용(없으면 공개 페이지 파싱).
+on:
+  schedule:
+    - cron: "30 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Update base rates
+        env:
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
+        run: python scripts/update_rates.py
+      - name: Policy staleness report (정보용, 실패시켜도 커밋은 진행)
+        run: python scripts/check_policy.py || true
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- config/market.json; then
+            echo "market.json 변경 없음"
+          else
+            git add config/market.json
+            git commit -m "chore: 기준금리 자동 갱신 $(date -u +%Y-%m-%d)"
+            git push
+          fi

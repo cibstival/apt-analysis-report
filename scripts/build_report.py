@@ -20,7 +20,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from lib_report import (PY_M2, compute_metrics, fill, find_unfilled, half_key, load_json, load_trades,
+from lib_report import (PY_M2, acquisition_tax_formula, brokerage_formula, compute_metrics, fill, find_unfilled, half_key, load_json, load_policy, load_trades,
                         parse_date, safe_sheet)
 
 F = "Arial"
@@ -56,6 +56,30 @@ def secondary(main, sec):
 
 def nice_max(v, step):
     return max(step, math.ceil(v * 1.15 / step) * step)
+
+
+def policy_rows():
+    """출처_가정 시트용 정책 기준 행. config/policy.json의 세제·규제·대출 항목과 확인일을 그대로 옮긴다."""
+    pol = load_policy(); out = []
+    for key in ("acquisition_tax", "brokerage", "capital_gains", "loan", "regulation", "tax_reform"):
+        sec = pol.get(key)
+        if not sec:
+            continue
+        parts = []
+        if key == "acquisition_tax":
+            parts.append(f"{sec['low_upto']/10000:g}억 이하 {sec['low_rate']:.0%}, {sec['high_from']/10000:g}억 초과 {sec['high_rate']:.0%}, {sec['interp_note']}. {sec['extra_note']}")
+        elif key == "brokerage":
+            parts.append(" / ".join((f"~{b['upto']/10000:g}억" if b["upto"] else "초과") + f" {b['rate']:.1%}" for b in sec["brackets"]) + f" + 부가세 {sec['vat_ratio']:.0%}. {sec['sell_note']}")
+        elif key == "capital_gains":
+            parts.append(sec["assumption"])
+        for k, v in (sec.get("current") or {}).items():
+            parts.append(f"{k}: {v}")
+        if sec.get("status"):
+            parts.append(f"[{sec['status']}]")
+        parts.append(f"— 출처 {sec.get('source', '')}, 시행 {sec.get('effective_from', '')}~")
+        out.append((f"정책 기준: {sec.get('label', key)}", " ".join(parts)))
+    out.append(("정책 기준 확인일", f"{pol['checked_at']} (config/policy.json, {pol['check_interval_days']}일 경과 시 실행 전 재확인). 최근 변경: " + "; ".join(f"{c['date']} {c['note']}" for c in pol.get("changelog", [])[-3:])))
+    return out
 
 
 def build(apt_path, mkt_path, out_path):
@@ -284,7 +308,7 @@ def build(apt_path, mkt_path, out_path):
 
     # ===================== 출처_가정 =====================
     wn["A1"] = "출처 및 가정"; wn["A1"].font = font(bold=True, size=14)
-    rows = [("구분", "내용")] + [tuple(x) for x in mkt.get("sources_rows", [])] + [tuple(x) for x in fill(apt.get("sources_rows", []), M)]
+    rows = [("구분", "내용")] + [tuple(x) for x in mkt.get("sources_rows", [])] + policy_rows() + [tuple(x) for x in fill(apt.get("sources_rows", []), M)]
     for i, (a, b) in enumerate(rows):
         rr = 3 + i; wn[f"A{rr}"] = a; wn[f"B{rr}"] = b
         for c in "AB": wn[f"{c}{rr}"].border = box; wn[f"{c}{rr}"].alignment = Alignment(wrap_text=True, vertical="top")
@@ -638,22 +662,24 @@ def build_analysis_sheet(C):
         mw(r, 8, 9, f"=F{tag['max']}/{P0}-1", f=font(bold=True, color="C00000"), fill=REDF, border=True, fmt='+0.0%;-0.0%;0.0%', al=Alignment(horizontal="center"))
         mw(r, 10, Mx, "KB시세 기준 평가손은 Ⅱ장 표 참고", f=font(size=9, color="595959"), fill=REDF, border=True, al=Alignment(indent=1, vertical="center"))
     md = ol.get("model", {})
+    pol = load_policy(); PT, PB, PL = pol["acquisition_tax"], pol["brokerage"], pol["loan"]
+    EDU = 1 + PT["local_education_tax_ratio"]; VAT = 1 + PB["vat_ratio"]; SELL = PB["sell_rate_simplified"]
     sub("3. 3년 보유 손익 모델 (1세대 1주택·실거주 가정, 노란 칸 수정 가능)")
     base_r = ROW[0]
     keys = ["LTV", "CAP", "LOAN", "RATE", "TAXR", "TAX", "BRK", "ETC", "ACQ", "CASH", "HOLD", "OPP", "SAVE"]
     MI = {k: f"$F${base_r+i}" for i, k in enumerate(keys)}; MI["P0"] = P0
-    model = [("LTV", "대출 LTV", md.get("ltv", 0.4), "0%", md.get("ltv_note", "")),
-             ("CAP", "주담대 한도 (만원)", md.get("loan_cap", 60000), "#,##0", md.get("cap_note", "")),
+    model = [("LTV", "대출 LTV", md.get("ltv", PL["ltv_default"]), "0%", md.get("ltv_note", "")),
+             ("CAP", "주담대 한도 (만원)", md.get("loan_cap", PL["loan_cap_default"]), "#,##0", md.get("cap_note", "")),
              ("LOAN", "대출금액 (만원)", "=MIN({P0}*{LTV},{CAP})".format(**MI), "#,##0", "LTV와 한도 중 작은 값"),
-             ("RATE", "대출금리 (연)", md.get("rate", 0.05), "0.0%", md.get("rate_note", "")),
-             ("TAXR", "취득세율 (지방교육세 제외)", "=IF({P0}<=60000,0.01,IF({P0}<=90000,({P0}/10000*2/3-3)/100,0.03))".format(**MI), "0.00%", "1주택 기준 산식(전용 85㎡ 초과 시 농특세 별도)"),
-             ("TAX", "취득세+지방교육세 (만원)", "={P0}*{TAXR}*1.1".format(**MI), "#,##0", "지방교육세 = 취득세의 10%"),
-             ("BRK", "매수 중개보수 (만원)", "=IF({P0}<=90000,0.004,IF({P0}<=120000,0.005,0.006))*1.1*{P0}".format(**MI), "#,##0", "상한요율 + 부가세"),
-             ("ETC", "법무·등기·기타 (만원)", md.get("etc_cost", 300), "#,##0", "추정치"),
+             ("RATE", "대출금리 (연)", md.get("rate", PL["rate_default"]), "0.0%", md.get("rate_note", "")),
+             ("TAXR", "취득세율 (지방교육세 제외)", "=" + acquisition_tax_formula(P0, pol), "0.00%", f"{PT['extra_note']} ({PT['source']}, {PT['effective_from']}~)"),
+             ("TAX", "취득세+지방교육세 (만원)", "={P0}*{TAXR}*{EDU}".format(EDU=EDU, **MI), "#,##0", f"지방교육세 = 취득세의 {PT['local_education_tax_ratio']:.0%}"),
+             ("BRK", "매수 중개보수 (만원)", "=" + brokerage_formula(P0, pol) + f"*{VAT}*{P0}", "#,##0", f"상한요율 + 부가세 ({PB['source']}, {PB['effective_from']}~)"),
+             ("ETC", "법무·등기·기타 (만원)", md.get("etc_cost", PL["etc_cost_default"]), "#,##0", "추정치"),
              ("ACQ", "취득비용 합계 (만원)", "={TAX}+{BRK}+{ETC}".format(**MI), "#,##0", ""),
              ("CASH", "투입 현금 (만원)", "={P0}-{LOAN}+{ACQ}".format(**MI), "#,##0", "거래가 − 대출 + 취득비용"),
-             ("HOLD", "연간 보유세 (만원)", md.get("holding_tax", 150), "#,##0", md.get("holding_note", "추정치")),
-             ("OPP", "예금 기회비용 금리 (연)", md.get("deposit_rate", 0.035), "0.0%", md.get("deposit_note", "")),
+             ("HOLD", "연간 보유세 (만원)", md.get("holding_tax", PL["holding_tax_default"]), "#,##0", md.get("holding_note", "추정치")),
+             ("OPP", "예금 기회비용 금리 (연)", md.get("deposit_rate", PL["deposit_rate_default"]), "0.0%", md.get("deposit_note", "")),
              ("SAVE", "실거주 주거비 절감 (연, 만원)", md.get("housing_saving", 0), "#,##0", md.get("saving_note", "전세·월세로 살았다면 들었을 비용"))]
     inputs([(k, lab, v, fm, nt) for k, lab, v, fm, nt in model])
     nxt()
@@ -661,17 +687,17 @@ def build_analysis_sheet(C):
     rows = []; R0 = ROW[0] + 1
     for i, rs in enumerate(outs):
         rr = R0 + i; P3 = f"D{rr}"
-        rows.append([f"=B{rs}", f"=I{rs}", f"=IF({P3}<=90000,0.004,IF({P3}<=120000,0.005,0.006))*1.1*{P3}",
+        rows.append([f"=B{rs}", f"=I{rs}", "=" + brokerage_formula(P3, pol) + f"*{VAT}*{P3}",
                      f"={MI['LOAN']}*{MI['RATE']}*3", f"={MI['HOLD']}*3", f"={MI['SAVE']}*3",
                      f"={P3}-F{rr}-{P0}-{MI['ACQ']}-G{rr}-H{rr}+I{rr}", f"=J{rr}/{MI['CASH']}", f"=J{rr}-{MI['CASH']}*{MI['OPP']}*3"])
     table(spec, rows, fmts=[None, "#,##0", "#,##0", "#,##0", "#,##0", "#,##0", '#,##0;[Red]-#,##0', "+0.0%;[Red]-0.0%", "#,##0;[Red]-#,##0"])
     BE = nxt()
     core = f"({P0}+{MI['ACQ']}+{MI['LOAN']}*{MI['RATE']}*3+{MI['HOLD']}*3-{MI['SAVE']}*3"
     mw(BE, B, 7, "손익분기 3년 누적 상승률 (기회비용 제외 / 포함)", f=font(bold=True, color="FFFFFF"), fill=NAVY, border=True, al=Alignment(indent=1, vertical="center"))
-    mw(BE, 8, 9, f"={core})/(1-0.0044)/{P0}-1", f=font(bold=True, size=11, color="C00000"), border=True, fmt='+0.0%', al=Alignment(horizontal="center"))
-    mw(BE, 10, 11, f"={core}+{MI['CASH']}*{MI['OPP']}*3)/(1-0.0044)/{P0}-1", f=font(bold=True, size=11, color="C00000"), border=True, fmt='+0.0%', al=Alignment(horizontal="center"))
-    mw(BE, 12, Mx, "매도 보수 0.44% 가정", f=font(size=9, color="595959"), border=True, al=Alignment(indent=1, vertical="center"))
-    note("※ 이자는 원금 상환 없이 이자만 낸다고 단순화. 1세대 1주택·보유/거주 요건 충족 시 양도세 비과세 가정. 세법·대출 조건은 개인별로 다르므로 세무사·금융기관 확인 필요.")
+    mw(BE, 8, 9, f"={core})/(1-{SELL})/{P0}-1", f=font(bold=True, size=11, color="C00000"), border=True, fmt='+0.0%', al=Alignment(horizontal="center"))
+    mw(BE, 10, 11, f"={core}+{MI['CASH']}*{MI['OPP']}*3)/(1-{SELL})/{P0}-1", f=font(bold=True, size=11, color="C00000"), border=True, fmt='+0.0%', al=Alignment(horizontal="center"))
+    mw(BE, 12, Mx, f"매도 보수 {SELL:.2%} 가정", f=font(size=9, color="595959"), border=True, al=Alignment(indent=1, vertical="center"))
+    note(f"※ 이자는 원금 상환 없이 이자만 낸다고 단순화. {pol['capital_gains']['report_note']}. 세법·대출 조건은 개인별로 다르므로 세무사·금융기관 확인 필요. (정책 기준 확인일 {pol['checked_at']})")
     callout(ol.get("model_callout", ""))
     if ol.get("checklist"):
         sub(f"4. 체크리스트 ({focus}평 {M['user_price_short']})")

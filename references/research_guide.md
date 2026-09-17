@@ -55,3 +55,21 @@
 | 주간 동향(drivers 수요 이동) | "한국부동산원 주간 아파트 가격 동향 <구> YYYY년 M월" |
 
 시나리오 확률·변동률은 근거(과거 최대 낙폭 `focus_max_drawdown`, 금리 경로, 개발 일정)를 전제 칸에 적고 '주관 가정'임을 유지한다.
+
+## 7. 정책 점검 (`check_policy.py`가 재확인 필요를 낼 때)
+`config/policy.json`의 항목별로 아래를 검색해 **바뀐 것만** 고친다. 확인 후 반드시 `check_policy.py --touch`로 기록한다.
+
+| policy.json 항목 | 검색 예시 | 바뀌면 고칠 곳 |
+|---|---|---|
+| `acquisition_tax` | "취득세율 1주택 YYYY", "지방세법 제11조 개정", "취득세 6억 9억 구간 개편" | `low_upto/high_from/low_rate/high_rate`, `effective_from`, `source` |
+| `brokerage` | "중개보수 상한요율 개정 YYYY", "공인중개사법 시행규칙 별표 1" | `brackets[]`, `vat_ratio` |
+| `capital_gains` | "1세대 1주택 양도세 비과세 기준 12억 YYYY", "양도세 개정 시행" | `assumption`, `report_note` |
+| `loan` | "주담대 LTV 규제지역 YYYY년 M월", "주담대 한도 6억 유지", "스트레스 DSR 3단계 가산금리" | `current{}`, `ltv_default/loan_cap_default` |
+| `regulation` | "규제지역 조정대상지역 지정 해제 YYYY", "토지거래허가구역 연장 해제 서울" | `current{}` |
+| `tax_reform` | "세제개편안 국회 통과 종부세 양도세 YYYY", "세법 개정안 시행일" | `current{}`, `status`(입법 예정→시행), `effective_from` |
+
+원칙
+- 출처는 정책브리핑(korea.kr)·국토부·기재부·행안부·국세청·법제처(law.go.kr) > 주요 언론. 블로그·커뮤니티는 근거로 쓰지 않는다.
+- "발표"와 "시행"을 구분한다. 시행 전이면 `status`에 "입법 예정"을 남기고 값은 바꾸지 않는다.
+- 값을 바꿀 때 `changelog`에 날짜·내용·출처를 남긴다(`--touch --note --source`가 자동으로 추가).
+- 세율·요율의 **구조**(예: 구간 수)가 바뀌어 JSON으로 표현이 안 되면 `lib_report.py`의 `acquisition_tax_rate/brokerage_rate`와 `_formula` 짝을 함께 고치고, `python scripts/build_report.py`로 예시 단지를 다시 빌드해 수식이 깨지지 않는지 확인한다.

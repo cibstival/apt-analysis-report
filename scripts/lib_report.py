@@ -134,13 +134,52 @@ def rate_at(events, d):
     return val
 
 
-def acquisition_tax_rate(p):
-    """1주택 취득세율(지방교육세 제외). 6억 이하 1%, 6~9억 산식, 9억 초과 3%."""
-    if p <= 60000:
-        return 0.01
-    if p <= 90000:
-        return (p / 10000 * 2 / 3 - 3) / 100
-    return 0.03
+# ---------------------------------------------------------------- 정책(세율·요율·기본값)
+_POLICY = None
+
+
+def load_policy(path=None):
+    """config/policy.json 로드(캐시). 세율·요율·기본값은 코드가 아니라 이 파일에서 온다."""
+    global _POLICY
+    if path is None and _POLICY is not None:
+        return _POLICY
+    path = path or Path(__file__).resolve().parent.parent / "config" / "policy.json"
+    _POLICY = load_json(path)
+    return _POLICY
+
+
+def acquisition_tax_rate(p, pol=None):
+    """1주택 취득세율(지방교육세 제외). low_upto 이하 low_rate, high_from 초과 high_rate, 사이는 선형."""
+    t = (pol or load_policy())["acquisition_tax"]
+    if p <= t["low_upto"]:
+        return t["low_rate"]
+    if p <= t["high_from"]:
+        return t["low_rate"] + (p - t["low_upto"]) / (t["high_from"] - t["low_upto"]) * (t["high_rate"] - t["low_rate"])
+    return t["high_rate"]
+
+
+def acquisition_tax_formula(P, pol=None):
+    """acquisition_tax_rate와 같은 값을 내는 엑셀 수식. P는 거래가 셀 참조."""
+    t = (pol or load_policy())["acquisition_tax"]
+    L, H, lr, hr = t["low_upto"], t["high_from"], t["low_rate"], t["high_rate"]
+    return f"IF({P}<={L},{lr},IF({P}<={H},{lr}+({P}-{L})/({H}-{L})*({hr}-{lr}),{hr}))"
+
+
+def brokerage_rate(p, pol=None):
+    """중개보수 상한요율(부가세 제외). brackets는 upto 오름차순, 마지막은 upto null."""
+    for b in (pol or load_policy())["brokerage"]["brackets"]:
+        if b["upto"] is None or p <= b["upto"]:
+            return b["rate"]
+    return 0.0
+
+
+def brokerage_formula(P, pol=None):
+    """brokerage_rate와 같은 값을 내는 엑셀 수식(중첩 IF)."""
+    br = (pol or load_policy())["brokerage"]["brackets"]
+    expr = str(br[-1]["rate"])
+    for b in reversed(br[:-1]):
+        expr = f"IF({P}<={b['upto']},{b['rate']},{expr})"
+    return expr
 
 
 def compute_metrics(apt, mkt, trades):
@@ -247,12 +286,14 @@ def compute_metrics(apt, mkt, trades):
         M["exp_1y"] = pct(sum(s[1] * s[2] for s in sc)); M["exp_3y"] = pct(sum(s[1] * s[3] for s in sc))
     md = ol.get("model", {})
     if md:
-        loan = min(user * md.get("ltv", 0.4), md.get("loan_cap", 60000))
-        acq = user * acquisition_tax_rate(user) * 1.1 + user * 0.004 * 1.1 + md.get("etc_cost", 300)
-        costs = user + acq + loan * md.get("rate", 0.05) * 3 + md.get("holding_tax", 150) * 3 - md.get("housing_saving", 0) * 3
-        be = costs / (1 - 0.0044) / user - 1
+        pol = load_policy(); ld = pol["loan"]; vat = 1 + pol["brokerage"]["vat_ratio"]; edu = 1 + pol["acquisition_tax"]["local_education_tax_ratio"]
+        sell = pol["brokerage"]["sell_rate_simplified"]
+        loan = min(user * md.get("ltv", ld["ltv_default"]), md.get("loan_cap", ld["loan_cap_default"]))
+        acq = user * acquisition_tax_rate(user, pol) * edu + user * brokerage_rate(user, pol) * vat + md.get("etc_cost", ld["etc_cost_default"])
+        costs = user + acq + loan * md.get("rate", ld["rate_default"]) * 3 + md.get("holding_tax", ld["holding_tax_default"]) * 3 - md.get("housing_saving", 0) * 3
+        be = costs / (1 - sell) / user - 1
         cash = user - loan + acq
-        be2 = (costs + cash * md.get("deposit_rate", 0.035) * 3) / (1 - 0.0044) / user - 1
+        be2 = (costs + cash * md.get("deposit_rate", ld["deposit_rate_default"]) * 3) / (1 - sell) / user - 1
         M["breakeven_3y"] = pct(be); M["breakeven_3y_opp"] = pct(be2)
         M["loan_amount"] = eok(loan); M["cash_needed"] = eok(cash); M["acq_cost"] = eok(acq)
     return M

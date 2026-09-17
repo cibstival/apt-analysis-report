@@ -16,6 +16,9 @@ apt-analysis-report/
 ├── scripts/fetch_molit_trades.py# 국토부 API → 실거래 CSV (MOLIT_API_KEY 필요)
 ├── scripts/import_rtms_csv.py   # rt.molit.go.kr 다운로드 파일 → 실거래 CSV
 ├── scripts/verify_xlsx.py       # LibreOffice로 수식 오류 검사(없으면 생략)
+├── scripts/check_policy.py      # 정책 기준 유효기간 점검·갱신 기록(--touch)
+├── scripts/update_rates.py      # 한·미 기준금리 자동 갱신(FRED·한국은행) → market.json
+├── config/policy.json           # 세율·요율·규제·기본값 + 확인일·변경이력 (코드에 상수 없음)
 ├── config/market.json           # 시장 공통: 한미 금리, 반기 목록, 비교 그룹 평단가·거래량
 ├── config/apartments/_template.json
 ├── config/apartments/changsin_ssangyong1.json  # 완성 예시(항상 참고)
@@ -25,14 +28,27 @@ apt-analysis-report/
 
 ## 작업 순서
 
-### 0) 입력 확인
+### 0-a) 최신화 게이트 (매 실행, 사용자에게 묻지 않고 수행)
+```bash
+git -C <스킬루트> pull --ff-only 2>/dev/null        # GitHub의 자동 갱신(기준금리)을 받는다. 실패해도 계속
+python scripts/update_rates.py                        # 한·미 기준금리를 공식 소스에서 확인해 market.json 갱신
+python scripts/check_policy.py                        # 정책 기준 확인일 점검 (exit 1 = 재확인 필요)
+```
+- `update_rates.py`가 "⚠ 소스 최신값과 다릅니다"를 내면: 소스 지연(FRED는 효력일 익일 반영)인지 수기 오류인지 판단해 `market.json`을 바로잡는다.
+- `check_policy.py`가 **재확인 필요**를 내면: `references/research_guide.md` **'7. 정책 점검'** 순서대로 웹검색으로 확인한다.
+  - 변경 없음 → `python scripts/check_policy.py --touch --note "변경 없음 확인" --source "<확인한 출처·날짜>"`
+  - 변경 있음 → `config/policy.json`의 해당 값·`effective_from`·`source`를 고친 뒤 `--touch --note "<무엇이 어떻게 바뀜>"`. 세율·요율 구조 자체가 바뀌어 JSON으로 표현이 안 되면 그때만 `lib_report.py`의 해당 함수를 고친다.
+- 정책은 코드가 아니라 `policy.json`에서만 읽는다. 세율·LTV·규제 내용을 코드나 텍스트에 직접 쓰지 않는다. 보고서 '출처_가정' 시트에 정책 기준과 확인일이 자동으로 들어간다.
+- 사용자에게는 최종 보고 때 "정책 기준 확인일 YYYY-MM-DD, 변경 사항 ○○"을 한 줄 알린다.
+
+### 0-b) 입력 확인
 - 필수: 단지명. 선택: 거래가(만원)·평형·매수/매도 여부.
 - 동명이단지가 흔하다(예: ○○현대). 시·구·동이 없으면 한 번만 물어본다.
 - 거래가가 없으면 멈추지 말고 최근 실거래 최고가를 `user_deal.price`로 쓰고 note에 "기준가(사용자 거래가 없음)"라고 적는다.
 
 ### 1) 시장 설정 최신화 (`config/market.json`)
 `as_of`가 오늘보다 1개월 이상 오래됐으면 먼저 갱신한다. 방법은 `references/research_guide.md`의 '시장 데이터' 절.
-- 금리: 한국은행·FOMC 결정을 검색해 `rates` 끝에 추가.
+- 금리: 0-a에서 `update_rates.py`가 이미 채웠다. 소스 지연으로 빠진 최신 결정(당일~익일)만 검색해 `rates` 끝에 추가.
 - `periods` 마지막 부분 반기(`partial: true`)의 label·date를 오늘 기준으로 수정하고, 완성된 반기는 일반 행으로 추가.
 - `groups.*.ppp`와 `volume.rows`는 periods와 **같은 길이·순서**를 유지한다(volume은 맨 앞 기준 반기 1개가 더 있음). 새 값은 공표치 근거를 anchors/sources_rows에 남긴다.
 - 서울 밖 단지면 비교 그룹을 해당 지역에 맞게 바꿀지 사용자에게 한 줄로 확인한다.
@@ -60,7 +76,7 @@ apt-analysis-report/
 - `episode`: `halves`에서 가장 설명이 필요한 구간(금리와 거래량이 반대로 움직인 반기, 급락, 거래절벽 등)을 골라 당시 기사로 원인을 분석한다. 마땅한 구간이 없으면 `"episode": null`(섹션 자동 생략).
 - `region`: 해당 동/생활권의 정비사업·교통·공급·정책 파이프라인과 단기/중기/장기 전망. 해당 없으면 null.
 - `price_refs.new_build`: 인근 신축·분양 비교치를 넣을 때 **조합원분양가/일반분양가/입주 후 시세 중 무엇인지, 어느 시점 추정인지**를 label과 source에 반드시 명시한다(과거에 조합원분양가를 일반분양가로 잘못 표기한 사례가 있음). 조합원가면 `member_ratio`를 기사 근거로 넣는다.
-- `outlook.drivers`·`model`: 실행 시점의 주담대 금리, LTV·대출한도, 토지거래허가·규제지역 여부, 세제 변경을 **해당 단지 위치 기준으로 다시 검색**한다. 규제는 자주 바뀐다.
+- `outlook.drivers`·`model`: 실행 시점의 주담대 금리, LTV·대출한도, 토지거래허가·규제지역 여부, 세제 변경을 **해당 단지 위치 기준으로 다시 검색**한다. 규제는 자주 바뀐다. 출발점은 `config/policy.json`의 `loan.current`·`regulation.current`이며, 검색 결과가 이와 다르면 policy.json도 함께 고친다(0-a 절차).
 - `checklist`: 매수/매도가 불명확하면 양쪽 관점을 모두 넣는다.
 
 ### 5) 빌드·검증

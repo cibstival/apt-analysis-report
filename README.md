@@ -19,7 +19,13 @@ pip install openpyxl          # 필수
 설치 후 해당 폴더에서 Claude Code를 (재)시작하면 `/apt-analysis-report` 스킬이 자동으로 잡힙니다.
 git이 없으면 GitHub 페이지의 **Code → Download ZIP**을 받아 위 경로에 풀어도 됩니다(폴더 바로 아래에 `SKILL.md`가 오도록).
 
-업데이트: 설치 폴더에서 `git pull`
+업데이트: 설치 폴더에서 `git pull` (스킬이 실행 때마다 스스로 `git pull --ff-only`를 시도합니다)
+
+### 정책·금리 자동 최신화
+- **기준금리**: GitHub Actions가 매주 월요일 FRED·한국은행에서 한·미 기준금리를 읽어 `config/market.json`을 갱신·커밋합니다. 스킬도 실행 시 `scripts/update_rates.py`를 돌려 그 자리에서 다시 확인합니다.
+- **세제·대출·규제**: `config/policy.json`에 취득세·중개보수·양도세 가정·LTV·규제지역이 확인일과 함께 들어 있습니다. 확인일이 30일을 넘으면 스킬이 실행 전에 정책 변경을 검색해 확인하고(`scripts/check_policy.py`), 바뀐 값은 JSON과 변경이력에 기록합니다. 코드에는 세율 상수가 없습니다.
+- 보고서 '출처_가정' 시트에 적용된 정책 기준과 확인일이 자동으로 들어갑니다.
+- 선택: 저장소 Secrets에 `ECOS_API_KEY`(한국은행 ECOS)를 넣으면 공개 페이지 파싱 대신 API를 씁니다.
 
 ### 국토부 실거래 API 키 (선택이지만 권장)
 1. data.go.kr 에서 "국토교통부_아파트 매매 실거래가 상세 자료" 활용신청
