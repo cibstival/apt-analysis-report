@@ -678,7 +678,7 @@ def build_analysis_sheet(C):
     EDU = 1 + PT["local_education_tax_ratio"]; VAT = 1 + PB["vat_ratio"]; SELL = PB["sell_rate_simplified"]
     CG = pol["capital_gains"]; ud_ = apt["user_deal"]
     ONE_HOME = 1 if md.get("one_home", 1) == 1 else 0
-    LTCG0 = md.get("ltcg", ltcg_rate(pol, 3, ONE_HOME == 1, bool(ud_.get("resident", True))))
+    LTCG0 = md["ltcg"] if md.get("ltcg") is not None else ltcg_rate(pol, 3, ONE_HOME == 1, bool(ud_.get("resident", True)))
     sub(f"3. 3년 보유 손익 모델 (노란 칸 수정 가능 · 매도가 {CG['high_value_threshold']/10000:g}억 초과분 양도세 자동 계산)")
     base_r = ROW[0]
     keys = ["LTV", "CAP", "LOAN", "RATE", "TAXR", "TAX", "BRK", "ETC", "ACQ", "CASH", "HOLD", "OPP", "SAVE", "HOME1", "HV", "LTCG", "BDED"]

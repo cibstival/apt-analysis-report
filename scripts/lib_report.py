@@ -349,7 +349,8 @@ def compute_metrics(apt, mkt, trades):
         M["loan_amount"] = eok(loan); M["cash_needed"] = eok(cash); M["acq_cost"] = eok(acq)
         # 시나리오별 양도세(12억 초과분 과세)와 세후 순손익
         cg = pol["capital_gains"]; ud = apt["user_deal"]
-        one_home = md.get("one_home", 1) == 1; ltcg = md.get("ltcg", ltcg_rate(pol, 3, one_home, bool(ud.get("resident", True))))
+        one_home = md.get("one_home", 1) == 1
+        ltcg = md["ltcg"] if md.get("ltcg") is not None else ltcg_rate(pol, 3, one_home, bool(ud.get("resident", True)))
         M["ltcg_rate"] = pct(ltcg, sign=False, nd=0); M["hv_threshold"] = eok_short(cg["high_value_threshold"])
         names = {0: "bull", 1: "base", 2: "bear", 3: "stress"}
         parts = []
